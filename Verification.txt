@@ -1,0 +1,84 @@
+exec (acomp a) (0,s,[]) == (length (acomp a), s, [aval a s])
+
+Proof:
+
+Reminder of some expression we will be using in this proof
+
+accomp :: AExp -> [Instr]
+acomp (N a) = [(LOADI a)]
+acomp (V a) = [(LOAD a)]
+acomp(Plus a b) = (acomp a) ++ (acomp b) ++ (ADD)
+
+data AExp = N Val | V String | Plus AExp AExp
+
+exec :: [Instr] -> Config -> Config
+exec [] (a,state,bs) = (a, state, bs)
+exec [y] (a, state, bs) = iexec y (a, state, bs)
+exec (y:ys) (a, state, bs) = exec ys (iexec y (a, state, bs))
+
+aval :: AExp -> State -> Val
+aval (N a) state = a
+aval (V b) state = state ! b
+aval (Plus a b) state = aval a state + aval b state 
+
+iexec :: Instr -> Config -> Config
+iexec (LOADI f) (a, state, ds) = (a+1, state, f:ds)-- this will include the base case of an empty list
+
+iexec (LOAD f) (a, state, ds) = (a+1, state, state ! f :ds)
+
+iexec ADD (a, state, []) = (a+1, state, []) -- here it handles if the list doesnt have any elements
+iexec ADD (a, state, [d]) = (a+1, state, [d]) -- here it handles if the list doesnt have enough elements
+iexec ADD (a, state, d:e:ds) = (a+1,  state , (d+e):ds)
+
+iexec (STORE f) (a, state, []) = (a+1, state, [])
+iexec (STORE f) (a, state, d:ds) = (a+1, insert f d state , ds)
+
+iexec (JMP f) (a, state, []) = (a+f+1, state, [])
+iexec (JMP f) (a, state, ds) = (a+f+1, state, ds)
+
+iexec (JMPLESS f) (a, state, []) = (a +1, state, [])
+iexec (JMPLESS f) (a, state, d:e:ds)  |e<d = (a+f+1,  state, ds)
+                                      |e>=d = (a +1, state, ds)
+iexec (JMPLESS f) (a, state, [d]) = (a +1, state, [d])
+
+iexec (JMPGE f) (a, state, []) = (a +1, state, [])
+iexec (JMPGE f) (a, state, [d]) = (a +1, state, [d])
+iexec (JMPGE f) (a, state, d:e:ds) |e>=d = (a+f+1,  state, ds)
+                                   |e< d = (a +1, state, ds)
+
+The induction
+
+Our base case will be the property that holds for (N a) and (V a), these are simply
+instructions that will have no recursion in their defintions
+
+Our inductive case will be the porperty that is preserved by Plus, this is more complex and 
+included recursion so has to be proved using the induction hypothesis
+
+Base Case -> P(N a), say that s is some State and a is some Val 
+
+exec (acomp (N a)) (0, s, []) = (length (acomp (N a)) ,s, [aval (N a) s])
+
+We know from the defintion of acomp that acomp N a will become [LOADI a]. This will give us
+
+exec ([LOADI a]) (0, s, []) = (length ([LOADI a]) ,s, [aval (N a) s])
+
+We can now simplify this further as the length of this list is now known.
+
+exec ([LOADI a]) (0, s, []) = (1,s, [aval (N a) s])
+
+Now if we apply aval to any N a and a state we will get a. Using this we get
+
+exec ([LOADI a]) (0, s, []) = (1,s, [a])
+
+Finally is we applu exec to ([LOADI a]) (0, s, []) we will get iexec LOADI a (0, s, []) 
+which when we use the iexec function we can see that this will be 
+
+(1, s, [a]) = (1, s, [a])
+
+Base case -> P(V a), say that s is some state and a is some Vname, also say that b is some Val 
+corresponding to Vname in our state s
+
+exec (acomp V a) (0, s, []) = (length (acomp V a), s, [aval (V a) s])
+
+again we can evaluate acomp for V a, here this will be [LOAD a]
+
